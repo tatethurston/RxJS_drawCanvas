@@ -4,9 +4,6 @@ $(document).ready(() => {
   var context = canvas[0].getContext("2d");
 
   var draw = function (from, to) {
-    if (to === null || from === null) {
-      return;
-    }
     context.beginPath();
     context.moveTo(from[0], from[1]);
     context.lineTo(to[0], to[1]);
@@ -14,32 +11,22 @@ $(document).ready(() => {
   };
 
   var mouseDown = Rx.Observable.fromEvent(canvas, 'mousedown');
-  //return null to segment mouseDraw stream
-  var mouseUp = Rx.Observable.fromEvent(document, 'mouseup')
-    .map(() => null);
+  var mouseUp = Rx.Observable.fromEvent(document, 'mouseup');
   var mouseMoves = Rx.Observable.fromEvent(canvas, "mousemove")
-    .map((event) => [event.offsetX, event.offsetY]);
+    .map((event) => [event.offsetX, event.offsetY])
+    .reduce((last, current) => {
+      console.log(last, current);
+      draw(last, current);
+      return current;
+    });
 
+  var mouseDraw = mouseDown.map((mouseDown) => mouseMoves.takeUntil(mouseUp))
 
-  var mouseDraw = mouseDown.selectMany(() => mouseMoves
-      .takeUntil(mouseUp)
-      //segment with null values
-      .merge(mouseUp)
+  mouseDraw.forEach(moveStream =>
+    moveStream.subscribe(
+      x => console.log('Next: '),
+      err => console.log('Error: ' + err), () => console.log('Completed')
     )
-    // this works but I don't like the side effect being tied to the observable
-    // seems like an anti pattern
-
-  // .reduce((last, current) => {
-  //   console.log('last:', last, 'current', current);
-  //   draw(last, current);
-  //   return current;
-  // });
-
-  var from = null;
-  mouseDraw.subscribe(to => {
-    draw(from, to);
-    from = to;
-    console.log(to);
-  });
+  );
 
 });
